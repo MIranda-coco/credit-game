@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赏金猎人：金币与荣耀 V3.5 - 纯本地缓存版</title>
+    <style>
+        :root {
+            --primary: #c0392b; 
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --bg: #1a1a2e;
+            --card-bg: #1e3a5f;
+            --text: #fff;
+            --gold: #f39c12; 
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        
+        /* 顶部导航 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border-bottom: 4px solid var(--gold);
+        }
+        h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        /* 角色/控制面板 */
+        .controls {
+            display: flex;
+            flex-wrap: wrap; 
+            align-items: center;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-gold { background: var(--gold); color: #333; }
+        .btn-secondary { background: #34495e; color: white; }
+        button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        button:disabled { background: #555; cursor: not-allowed; transform: none; }
+        
+        /* 角色标签 */
+        #roleTag {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        /* 游戏主区域 */
+        .game-container {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 20px;
+        }
+
+        /* 猎人列表 (排名榜) */
+        .hero-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .hero-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+            border: 2px solid #2a3b55;
+            transition: all 0.3s;
+        }
+        .avatar {
+            width: 60px;
+            height: 60px;
+            background: #333;
+            border-radius: 50%;
+            border: 3px solid var(--gold);
+            overflow: hidden;
+        }
+        .hero-score { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: var(--gold); 
+            text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+        }
+
+        /* 班级排行榜样式 */
+        .class-ranking-section {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        .class-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px dashed #333;
+            cursor: pointer; 
+            transition: background 0.2s;
+        }
+        .class-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .class-entry:last-child { border-bottom: none; }
+        .class-name { font-weight: bold; }
+        .class-total-score { color: var(--success); font-weight: bold; }
+
+        /* 通用弹窗/遮罩 */
+        .modal, .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 99;
+        }
+        .overlay { background: rgba(0,0,0,0.7); }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            
+            background: #222;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            z-index: 100;
+            border: 2px solid var(--primary);
+            width: 400px;
+            max-width: 90%; 
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        textarea, input[type="number"], input[type="text"], select { 
+            width: 100%; 
+            padding: 10px;
+            margin: 10px 0; 
+            background: #333; 
+            color: white; 
+            border: 1px solid #555; 
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        /* 商店随机兑换按钮样式 */
+        .btn-random {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(243, 156, 18, 0.5);
+            margin-top: 10px;
+            /* 强调 Gacha 按钮 */
+            border: 3px solid #ffcc00; 
+        }
+        
+        /* Gacha Result Modal 样式 */
+        .gacha-result {
+            text-align: center;
+            padding: 20px;
+            min-height: 250px; 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+        .gacha-drawing {
+            font-size: 50px;
+            animation: spin 0.5s infinite linear;
+            display: inline-block;
+            color: var(--gold);
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .gacha-reveal {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px dashed var(--gold);
+            border-radius: 8px;
+            background: rgba(243, 156, 18, 0.1);
+        }
+        .gacha-item-name {
+            font-size: 26px;
+            font-weight: bold;
+            color: var(--success);
+            text-shadow: 0 0 8px rgba(39, 174, 96, 0.7);
+        }
+        .gacha-item-desc {
+            font-size: 14px;
+            color: #ccc;
+            margin-top: 5px;
+        }
+
+        /* Store Card Enhancement */
+        .item-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2a3b55;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .store-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-open { background: var(--success); color: var(--card-bg); }
+        .status-closed { background: var(--danger); color: var(--card-bg); }
+        
+        /* V3.0 Search Results Styling */
+        .search-result-item {
+            padding: 10px;
+            border-bottom: 1px dashed #555;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 16px;
+        }
+        .search-result-item:hover {
+            background: #34495e;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* V3.2 Pinyin Management Styling */
+        .pinyin-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            font-size: 16px;
+        }
+        .pinyin-char { font-weight: bold; color: var(--gold); }
+        .pinyin-initial { color: var(--success); margin-left: 10px; }
+        
+        /* V3.5: 清零按钮的特殊样式 */
+        .btn-clear-score {
+            background: #8e44ad; 
+            color: white;
+        }
+
+    </style>
+</head>
+<body>
+<audio id="exchangeJingle" src="https://assets.mixkit.co/sfx/preview/mixkit-casino-reward-bell-1678.mp3" preload="auto"></audio>
+
+<header>
+    <div>
+        <h1>💰 赏金猎人：金币与荣耀</h1>
+        <div style="font-size: 14px; color: #888;">V3.5 - 纯本地缓存版 (数据不自动同步)</div>
+    </div>
+    <div class="controls">
+        <span id="roleTag" class="role-teacher">教师 (管理)</span>
+        <select id="roleSelector" onchange="changeRole(this.value)" style="padding: 8px; background: #333; color: white; border: 1px solid #555;">
+            </select>
+        
+        <button id="importBtn" class="btn-primary" onclick="openImport()">📂 导入赏金名单</button>
+        <button id="manageStoreBtn" class="btn-secondary" onclick="openStoreManager()">🏪 管理商店</button>
+        <button id="exportLogBtn" class="btn-secondary" onclick="exportLogData()">📜 导出操作日志</button>
+        <button id="exportCSVBtn" class="btn-success" onclick="exportData()">💾 导出战报 (CSV)</button>
+        <button id="clearScoreBtn" class="btn-clear-score" onclick="clearAllScores()">🏅️ 清零所有积分</button>
+    </div>
+</header>
+
+<div class="game-container">
+    <div class="main-view">
+        <h2 style="margin:0 0 15px 0">🥇 公会与猎人排名</h2>
+
+        <div class="class-ranking-section">
+            <h4 style="margin-top:0;">🏆 班级公会金币总榜 (点击查看详情)</h4>
+            <div id="classLeaderboard">
+                </div>
+        </div>
+        
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin:0;">👤 猎人列表</h4>
+            <div>
+                <select id="classFilter" onchange="changeClassFilter(this.value)" style="padding: 8px; background: #333; color: white; border: 1px solid #555; margin-right: 10px;">
+                    <option value="all">显示所有猎人 (All)</option>
+                    </select>
+                <button id="searchAdjustBtn" class="btn-secondary" onclick="openSearchAdjustModal()" style="display: none;">🔍 搜索学生调整</button>
+            </div>
+        </div>
+        
+        <div class="hero-grid" id="heroGrid">
+            </div>
+    </div>
+
+    <div class="store-view">
+        <div class="store-panel">
+            <div class="store-header">
+                <h3 style="margin:0">🛒 兑换商店</h3>
+                <span id="storeStatusBadge" class="store-status status-closed">休息中</span>
+            </div>
+            
+            <button id="toggleStoreBtn" class="btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="toggleStore()">
+                🔓 开启兑换
+            </button>
+            
+            <button id="randomExchangeBtn" class="btn-random" style="width: 100%; margin-bottom: 20px; display: none;" onclick="openExchangeSelector(null, true)">
+                🎰 随机扭扭乐 (40.0 💰)
+            </button>
+
+            <div id="storeItemsContainer" class="item-list" style="opacity: 0.5; pointer-events: none;">
+                </div>
+            
+            <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 10px;">
+                <h4>📜 操作/兑换日志 (最新)</h4>
+                <div id="logArea" style="height: 150px; overflow-y: auto; font-size: 12px; color: #aaa;">
+                    暂无记录...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="importOverlay"></div>
+<div class="modal" id="importModal">
+    <div class="modal-content">
+        <h3>导入赏金猎人名单 (Excel 粘贴)</h3>
+        <p>请直接从 Excel 或表格软件中复制三列数据粘贴。**如果学生姓名已存在，金币将叠加**。</p>
+        <p style="color:var(--success); font-weight:bold;">所需列顺序：姓名 | 金币值 | 班级号 (班级号可选填，默认'1')</p>
+        <textarea id="studentNamesInput" placeholder="张三   10.0   1&#10;李四, 5.5, 2"></textarea>
+        <div style="text-align: right;">
+            <button class="btn-primary" onclick="closeImport()">取消</button>
+            <button class="btn-success" onclick="processImport()">确定导入</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="exchangeSelectorOverlay"></div>
+<div class="modal" id="exchangeSelectorModal">
+    <div class="modal-content">
+        <h3 id="exchangeTitle">兑换商品：[商品名称]</h3>
+        <p id="exchangeCostInfo"></p>
+        
+        <label>选择班级:</label>
+        <select id="exchangeClassSelector" onchange="populateStudentSelectors()"></select>
+        
+        <label>选择兑换学生:</label>
+        <select id="exchangeStudentSelector"></select>
+        
+        <div style="text-align: right; margin-top: 20px;">
+            <button class="btn-primary" onclick="closeExchangeSelector()">取消</button>
+            <button class="btn-success" onclick="confirmExchange()">确认兑换</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="searchAdjustOverlay"></div>
+<div class="modal" id="searchAdjustModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">🔍 搜索并选择猎人</h3>
+        <input type="text" id="studentSearchInput" placeholder="输入学生姓名或首字母（例如：ZS）进行搜索..." oninput="filterStudentsForAdjust(this.value)">
+        <p style="font-size: 12px; color: #aaa;" id="searchInstruction">点击列表中的猎人进行赏金调整。</p>
+        <div id="studentSearchResults" style="max-height: 300px; overflow-y: auto; border: 1px solid #444; border-radius: 4px; padding: 5px; background: #1a1a2e;">
+            <p style="color:#aaa; text-align:center; padding:10px;">开始输入姓名或首字母...</p>
+        </div>
+        <div style="text-align: right; margin-top: 20px;">
+            <button class="btn-primary" onclick="closeSearchAdjustModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="gachaResultOverlay"></div>
+<div class="modal" id="gachaResultModal">
+    <div class="modal-content">
+        <div class="gacha-result">
+            <h3 id="gachaResultTitle"></h3>
+            <div id="gachaAnimation" class="gacha-drawing">🔄</div>
+            <div id="gachaRevealArea" style="display:none;">
+                <p style="color: var(--gold); font-size: 18px;">恭喜您抽到：</p>
+                <div class="gacha-reveal">
+                    <div class="gacha-item-name" id="gachaItemName"></div>
+                    <div class="gacha-item-desc" id="gachaItemDesc"></div>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="closeGachaResultModal()" style="margin-top: 30px; display:none;" id="gachaCloseBtn">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="adjustOverlay"></div>
+<div class="modal" id="adjustModal">
+    <div class="modal-content">
+        <h3 id="adjustTitle">调整赏金：[猎人姓名]</h3>
+        <p>输入要调整的金币值（正数加金币，负数扣金币，支持 $0.5$ 倍数）。</p>
+        <input type="number" id="adjustAmount" placeholder="例如: 5.0 或 -2.5" step="0.5">
+        <input type="text" id="adjustReason" placeholder="操作原因 (必填)">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+            <button class="btn-danger" id="deleteStudentBtn" onclick="deleteStudent(adjustingStudentId)">❌ 删除学生</button>
+            <div>
+                <button class="btn-primary" onclick="closeAdjustModal()">取消</button>
+                <button class="btn-success" onclick="submitAdjust()">确认操作</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="storeManagerOverlay"></div>
+<div class="modal" id="storeManagerModal">
+    <div class="modal-content">
+        <h3>🏪 管理兑换商店商品</h3>
+        
+        <button class="btn-secondary" onclick="openPinyinManager()" style="width:100%; margin-bottom: 20px;">🔠 管理拼音首字母映射</button>
+
+        <h4>添加新常规商品</h4>
+        <input type="text" id="newItemName" placeholder="商品名称">
+        <input type="number" id="newItemCost" placeholder="所需金币数 (支持0.5)" step="0.5">
+        <input type="text" id="newItemDesc" placeholder="商品描述 (例如: 免除一次作业)">
+        <button class="btn-success" onclick="addItemToStore()" style="width:100%; margin-bottom: 20px;">+ 添加常规商品</button>
+
+        <h4>现有常规商品列表 (点击删除)</h4>
+        <div id="currentStoreList">
+            </div>
+        
+        <h4 style="margin-top: 30px;">🎰 管理扭蛋专属奖品</h4>
+        <input type="text" id="newGachaName" placeholder="扭蛋奖品名称">
+        <input type="text" id="newGachaDesc" placeholder="奖品描述 (例如: 额外休息 5 分钟)">
+        <button class="btn-primary" onclick="addItemToGachaPool()" style="width:100%; margin-bottom: 20px;">+ 添加扭蛋奖品</button>
+
+        <h4>现有扭蛋奖品列表 (点击删除)</h4>
+        <div id="currentGachaList">
+            </div>
+
+        <div style="text-align: right; margin-top: 30px;">
+            <button class="btn-primary" onclick="closeStoreManager()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="classDetailOverlay"></div>
+<div class="modal" id="classDetailModal">
+    <div class="modal-content" id="classDetailContent">
+        </div>
+</div>
+
+<div class="overlay" id="pinyinManagerOverlay"></div>
+<div class="modal" id="pinyinManagerModal">
+    <div class="modal-content">
+        <h3>🔠 管理拼音首字母映射</h3>
+        <p style="font-size: 12px; color: #aaa;">当您搜索学生首字母失败时，可以在这里添加新的汉字映射，例如：汉字 **欧** 对应首字母 **O**。</p>
+        
+        <div style="display:flex; gap: 10px; align-items: center;">
+            <input type="text" id="newPinyinChar" placeholder="汉字 (例如: 欧)" maxlength="1" style="width: 50%;">
+            <input type="text" id="newPinyinInitial" placeholder="首字母 (例如: O)" maxlength="1" style="width: 50%; text-transform: uppercase;">
+        </div>
+        <button class="btn-success" onclick="addPinyinMapping()" style="width:100%; margin-bottom: 20px;">+ 添加新映射</button>
+
+        <h4>现有映射列表 (点击删除)</h4>
+        <div id="currentPinyinList" style="max-height: 250px; overflow-y: auto; border: 1px solid #444; border-radius: 4px; padding: 5px;">
+            </div>
+        
+        <div style="text-align: right; margin-top: 30px;">
+            <button class="btn-primary" onclick="closePinyinManager()">关闭</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // --- 1. 核心数据与状态 & Pinyin 辅助映射 ---
+    
+    // V3.5: 本地缓存键名
+    const LOCAL_STORAGE_KEY = 'bountyHunterData_v35'; 
+
+    // --- 【START】默认学生名单 (集成您的数据) ---
+    
+    // **注意：** 仅当本地缓存不存在时，才会使用以下默认名单。
+    // 如果您之前在浏览器中运行过旧版本，请手动清除浏览器缓存 (Ctrl+Shift+Del 或 Command+Shift+Del) 以确保加载这套新名单。
+    const defaultStudents = [
+        // 班级 1 
+        { id: Date.now() + 1, name: "万子晨", score: 58, class: "1" },
+        { id: Date.now() + 2, name: "昌善寒", score: 16.25, class: "1" },
+        { id: Date.now() + 3, name: "王雨泽", score: 17.5, class: "1" },
+        { id: Date.now() + 4, name: "方博", score: 48, class: "1" },
+        { id: Date.now() + 5, name: "艾天宇", score: 61, class: "1" },
+        { id: Date.now() + 6, name: "李语晨", score: 39.5, class: "1" },
+        { id: Date.now() + 7, name: "王雯月", score: 28.25, class: "1" },
+        { id: Date.now() + 8, name: "李怡", score: 81.5, class: "1" },
+        { id: Date.now() + 9, name: "李子轩", score: 22, class: "1" },
+        { id: Date.now() + 10, name: "吴泉乐", score: -5.25, class: "1" },
+        { id: Date.now() + 11, name: "孙义冉", score: 42.5, class: "1" },
+        { id: Date.now() + 12, name: "万宇畅", score: 45.75, class: "1" },
+        { id: Date.now() + 13, name: "祝志贤", score: 50.5, class: "1" },
+        { id: Date.now() + 14, name: "余欣然", score: 90.5, class: "1" },
+        { id: Date.now() + 15, name: "陈安琪", score: 51, class: "1" },
+        { id: Date.now() + 16, name: "郭佳盛", score: 24, class: "1" },
+        { id: Date.now() + 17, name: "朱昌博", score: 60, class: "1" },
+        { id: Date.now() + 18, name: "杨峻熙", score: 21.5, class: "1" },
+        { id: Date.now() + 19, name: "刘凯轩", score: 12.75, class: "1" },
+        { id: Date.now() + 20, name: "万梓辉", score: 5.75, class: "1" },
+        { id: Date.now() + 21, name: "徐锦轩", score: 29.5, class: "1" },
+        { id: Date.now() + 22, name: "祝世杰", score: 9.5, class: "1" },
+        { id: Date.now() + 23, name: "魏斯庆", score: 4, class: "1" },
+        { id: Date.now() + 24, name: "胡珂玚", score: 44.5, class: "1" },
+        { id: Date.now() + 25, name: "戈兴旺", score: 27, class: "1" },
+        { id: Date.now() + 26, name: "吴齐悦", score: 16.25, class: "1" },
+        { id: Date.now() + 27, name: "熊子越", score: 19, class: "1" },
+        { id: Date.now() + 28, name: "钟振华", score: 33.5, class: "1" },
+        { id: Date.now() + 29, name: "吴梦涵", score: 19.5, class: "1" },
+        { id: Date.now() + 30, name: "吴钰珊", score: 52, class: "1" },
+        { id: Date.now() + 31, name: "陈雨轩", score: 42.25, class: "1" },
+        { id: Date.now() + 32, name: "郝勇波", score: 26, class: "1" },
+        { id: Date.now() + 33, name: "游皓宇", score: 43, class: "1" },
+        
+        // 班级 3 
+        { id: Date.now() + 34, name: "胡彦泽", score: 5.5, class: "3" },
+        { id: Date.now() + 35, name: "殷舒雅", score: 56.25, class: "3" },
+        { id: Date.now() + 36, name: "梁宇轩", score: 10.25, class: "3" },
+        { id: Date.now() + 37, name: "王玥婷", score: 46, class: "3" },
+        { id: Date.now() + 38, name: "戈攀新", score: 25, class: "3" },
+        { id: Date.now() + 39, name: "杨宁鑫", score: 14, class: "3" },
+        { id: Date.now() + 40, name: "熊宇浩", score: 14, class: "3" },
+        { id: Date.now() + 41, name: "张天佑", score: -8, class: "3" },
+        { id: Date.now() + 42, name: "龚淑雅", score: 2.75, class: "3" },
+        { id: Date.now() + 43, name: "李雨欣", score: 99.5, class: "3" },
+        { id: Date.now() + 44, name: "张子墨", score: 71, class: "3" },
+        { id: Date.now() + 45, name: "余紫涵", score: 93.5, class: "3" },
+        { id: Date.now() + 46, name: "谢申博", score: 22.5, class: "3" },
+        { id: Date.now() + 47, name: "郑茗炜", score: 35, class: "3" },
+        { id: Date.now() + 48, name: "产博涛", score: -1.25, class: "3" },
+        { id: Date.now() + 49, name: "孙国川", score: 55.75, class: "3" },
+        { id: Date.now() + 50, name: "田兴博", score: 44.5, class: "3" },
+        { id: Date.now() + 51, name: "艾欣煜", score: 30.5, class: "3" },
+        { id: Date.now() + 52, name: "邹槿烨", score: 7, class: "3" },
+        { id: Date.now() + 53, name: "田艺宁", score: 48.5, class: "3" },
+        { id: Date.now() + 54, name: "雷梓悦", score: 121, class: "3" },
+        { id: Date.now() + 55, name: "何宇轩", score: 12.25, class: "3" },
+        { id: Date.now() + 56, name: "朱霖", score: 27.5, class: "3" },
+        { id: Date.now() + 57, name: "赵守信", score: 7.5, class: "3" },
+        { id: Date.now() + 58, name: "胡尔博", score: 29.75, class: "3" },
+        { id: Date.now() + 59, name: "周齐朔", score: 38, class: "3" },
+        { id: Date.now() + 60, name: "熊芮晗", score: 53, class: "3" },
+        { id: Date.now() + 61, name: "杨子优", score: 38, class: "3" },
+        { id: Date.now() + 62, name: "丁志豪", score: 29.5, class: "3" },
+        { id: Date.now() + 63, name: "方夫鑫", score: 56.25, class: "3" },
+        { id: Date.now() + 64, name: "何劲", score: 31.75, class: "3" },
+        { id: Date.now() + 65, name: "周擎昊", score: 25.5, class: "3" },
+        { id: Date.now() + 66, name: "甘思博", score: 51.75, class: "3" },
+        { id: Date.now() + 67, name: "胡宇晴", score: 38, class: "3" },
+        { id: Date.now() + 68, name: "杜文博", score: 15.25, class: "3" },
+        { id: Date.now() + 69, name: "余梓彤", score: 54, class: "3" },
+        { id: Date.now() + 70, name: "刘一帆", score: -1, class: "3" },
+        { id: Date.now() + 71, name: "张好好", score: 33, class: "3" },
+        { id: Date.now() + 72, name: "李芮菡", score: 33, class: "3" },
+        { id: Date.now() + 73, name: "廖涵艺", score: 29.5, class: "3" },
+        { id: Date.now() + 74, name: "徐梦妮", score: 56, class: "3" },
+        { id: Date.now() + 75, name: "陈啸", score: 49, class: "3" },
+        { id: Date.now() + 76, name: "吴灿", score: 63, class: "3" },
+        { id: Date.now() + 77, name: "余雪", score: 80, class: "3" },
+        { id: Date.now() + 78, name: "刘茜", score: 44, class: "3" },
+        { id: Date.now() + 79, name: "何宇健", score: -18.5, class: "3" },
+        { id: Date.now() + 80, name: "吴振雄", score: 34, class: "3" },
+        { id: Date.now() + 81, name: "洪伟", score: 15.5, class: "3" },
+        { id: Date.now() + 82, name: "田子涵", score: 4, class: "3" },
+        { id: Date.now() + 83, name: "庞睿昊", score: 29.5, class: "3" }
+    ];
+    let students = [...defaultStudents];
+    
+    // --- 【END】默认学生名单 ---
+
+    // 默认商店数据
+    // **已根据您的要求更新**
+    let storeItems = [
+        { id: 101, name: "奶茶 1 杯", cost: 70.0, desc: "兑换一杯指定奶茶" },
+        { id: 102, name: "解压捏捏乐", cost: 60.0, desc: "兑换一个解压小玩具" }
+    ];
+
+    // 默认扭蛋奖品
+    let gachaPrizes = [
+        { id: 201, name: "免除罚抄卡", desc: "随机免除一次罚抄任务" },
+        { id: 202, name: "幸运小饼干", desc: "下次测试获得一次运气加成" },
+        { id: 203, name: "零食兑换券", desc: "兑换小零食一份" },
+        { id: 204, name: "教师彩虹屁", desc: "获得教师真诚的赞美和鼓励" }
+    ];
+
+    let exchangeLog = []; 
+    let isStoreOpen = false;
+    let PinyinMap = {
+        '张': 'Z', '李': 'L', '王': 'W', '赵': 'Z', '钱': 'Q', '孙': 'S',
+        '赏': 'S', '金': 'J', '猎': 'L', '人': 'R', '三': 'S', '四': 'S',
+        '五': 'W', '六': 'L', '七': 'Q', '八': 'B', '·': '',
+        // V3.5 增加部分新名字的拼音映射
+        '昌': 'C', '雯': 'W', '珂': 'K', '玚': 'Y', '戈': 'G', '泽': 'Z', 
+        '玥': 'Y', '攀': 'P', '宇': 'Y', '浩': 'H', '龚': 'G', '欣': 'X',
+        '墨': 'M', '紫': 'Z', '申': 'S', '郑': 'Z', '炜': 'W', '产': 'C',
+        '涛': 'T', '煜': 'Y', '槿': 'J', '烨': 'Y', '晗': 'H', '夫': 'F',
+        '劲': 'J', '擎': 'Q', '思': 'S', '晴': 'Q', '彤': 'T', '茜': 'Q',
+        '伟': 'W', '芮': 'R', '涵': 'H', '艺': 'Y', '妮': 'N', '雪': 'X',
+        '健': 'J', '尧': 'Y', '畅': 'C', '贤': 'X', '晖': 'H', '峻': 'J'
+    }; 
+
+    let currentUserRole = 'teacher'; 
+    let currentCadreClass = null; 
+    let adjustingStudentId = null; 
+    let currentClassFilter = 'all'; 
+
+    let currentExchangeItemId = null; 
+    let isRandomExchange = false;     
+    
+    const RANDOM_COST = 40.0;
+    
+    // V3.3: 角色权限映射
+    const roleMap = {
+        'teacher': { tag: '教师 (管理)', class: 'role-teacher', canOperateScore: true, canAdmin: true },
+        'cadre': { tag: '班干部 (操作)', class: 'role-cadre', canOperateScore: true, canAdmin: false },
+        'student': { tag: '学生 (查看)', class: 'role-student', canOperateScore: false, canAdmin: false }
+    };
+    
+
+    // --- 2. 持久化逻辑 (V3.5 纯本地缓存逻辑) ---
+    
+    // V3.5: 将数据保存到浏览器的 localStorage
+    function saveData() {
+        const dataToSave = {
+            students: students,
+            storeItems: storeItems,
+            gachaPrizes: gachaPrizes,
+            exchangeLog: exchangeLog,
+            isStoreOpen: isStoreOpen,
+            PinyinMap: PinyinMap
+        };
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+            // addLog('**系统**：数据已自动保存到浏览器本地。', 'System'); // 过于频繁，取消日志
+        } catch (e) {
+            console.error("保存数据到本地存储失败:", e);
+        }
+    }
+
+    // V3.5: 从浏览器的 localStorage 加载数据
+    async function loadData() {
+        try {
+            const dataString = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (dataString) {
+                const data = JSON.parse(dataString);
+                
+                // 覆盖全局变量
+                students = data.students || students;
+                storeItems = data.storeItems || storeItems;
+                gachaPrizes = data.gachaPrizes || gachaPrizes;
+                exchangeLog = data.exchangeLog || exchangeLog;
+                isStoreOpen = data.isStoreOpen !== undefined ? data.isStoreOpen : false;
+                PinyinMap = data.PinyinMap || PinyinMap;
+                
+                // 确保数字格式正确
+                students = students.map(s => ({ 
+                    ...s, 
+                    score: parseFloat(s.score) 
+                }));
+                addLog('**系统**：数据已从浏览器本地缓存恢复。', 'System');
+                return;
+            }
+        } catch (e) {
+            console.error('加载本地存储数据失败，使用默认名单。', e);
+        }
+        
+        // 如果本地存储失败或不存在，使用默认名单
+        students = [...defaultStudents];
+        addLog('**系统**：无本地缓存数据，已使用代码中的默认名单和商店配置。', 'System');
+        saveData(); // 使用默认名单后立即保存一次
+    }
+
+    // --- Pinyin 辅助函数 (保持不变) ---
+    function getPinyinInitials(name) {
+        let initials = '';
+        for (let i = 0; i < name.length; i++) {
+            const char = name[i];
+            initials += PinyinMap[char] || ''; 
+        }
+        return initials;
+    }
+
+    function recalculateSearchKeys() {
+        students = students.map(s => {
+            const pinyinInitials = getPinyinInitials(s.name);
+            return {
+                ...s, 
+                pinyinInitials: pinyinInitials,
+                searchKey: (s.name + pinyinInitials).toLowerCase()
+            };
+        });
+    }
+    
+    // --- 3. 初始化与渲染 ---
+    async function init() {
+        await loadData(); 
+        
+        recalculateSearchKeys();
+        renderRoleSelector(); 
+        changeRole('teacher'); 
+        toggleStore(false); 
+        renderClassFilterOptions();
+        renderClassLeaderboard();
+        renderHeroes();
+        renderStore();
+        renderLogHistory();
+    }
+    
+    function getUniqueClasses() {
+        const classes = new Set(students.map(s => s.class).filter(c => c));
+        return Array.from(classes).sort();
+    }
+    
+    // V3.3: 渲染角色选择器，包括班干部班级选项
+    function renderRoleSelector() {
+        const select = document.getElementById('roleSelector');
+        const uniqueClasses = getUniqueClasses();
+        
+        let optionsHtml = '<option value="teacher">教师 (管理)</option>';
+        
+        uniqueClasses.forEach(className => {
+            optionsHtml += `<option value="cadre-${className}">班干部 - ${className} 班 (操作)</option>`;
+        });
+        
+        optionsHtml += '<option value="student">学生 (查看)</option>';
+        select.innerHTML = optionsHtml;
+        
+        // 尝试恢复上次的角色选择
+        if (currentUserRole === 'cadre' && currentCadreClass) {
+            select.value = `cadre-${currentCadreClass}`;
+        } else {
+            select.value = currentUserRole;
+        }
+    }
+
+    function renderClassFilterOptions() {
+        const select = document.getElementById('classFilter');
+        select.innerHTML = '<option value="all">显示所有猎人 (All)</option>';
+
+        const uniqueClasses = getUniqueClasses();
+        uniqueClasses.forEach(className => {
+            const option = document.createElement('option');
+            option.value = className;
+            option.textContent = `${className} 班`;
+            select.appendChild(option);
+        });
+        select.value = currentClassFilter;
+    }
+
+    function changeClassFilter(className) {
+        currentClassFilter = className;
+        renderHeroes();
+    }
+
+    function renderClassLeaderboard() {
+        const container = document.getElementById('classLeaderboard');
+        container.innerHTML = '';
+
+        const classTotals = students.reduce((acc, s) => {
+            acc[s.class] = (acc[s.class] || 0) + s.score;
+            return acc;
+        }, {});
+
+        let classRankings = Object.keys(classTotals).map(className => ({
+            name: `${className} 班公会`,
+            score: parseFloat(classTotals[className].toFixed(1)),
+            className: className
+        }));
+        classRankings.sort((a, b) => b.score - a.score);
+
+        classRankings.forEach((c, index) => {
+            const entry = document.createElement('div');
+            entry.className = 'class-entry';
+            entry.setAttribute('onclick', `showClassDetails('${c.className}')`);
+            
+            let rankIcon = `<span>#${index + 1}</span>`;
+            if (index === 0) rankIcon = '🥇';
+            else if (index === 1) rankIcon = '🥈';
+            else if (index === 2) rankIcon = '🥉';
+
+            entry.innerHTML = `
+                <div class="class-name">${rankIcon} ${c.name}</div>
+                <div class="class-total-score">${c.score.toFixed(1)} 💰</div>
+            `;
+            container.appendChild(entry);
+        });
+    }
+    
+    function showClassDetails(className) {
+        const modal = document.getElementById('classDetailModal');
+        const overlay = document.getElementById('classDetailOverlay');
+        const content = document.getElementById('classDetailContent');
+
+        const studentsInClass = students
+            .filter(s => s.class === className)
+            .sort((a, b) => b.score - a.score);
+
+        let listHtml = studentsInClass.map((s, index) => `
+            <div style="display:flex; justify-content:space-between; align-items: center; padding:8px 0; border-bottom:1px dashed #444;">
+                <span style="font-size: 16px;">${index + 1}. ${s.name}</span>
+                <span style="color:var(--gold); font-weight:bold; font-size: 18px;">${s.score.toFixed(1)} 💰</span>
+            </div>
+        `).join('');
+
+        content.innerHTML = `
+            <h3 style="margin-top:0; color: var(--primary);">${className} 班猎人榜 (个人金币)</h3>
+            <div style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+                ${listHtml || '<p style="color:#aaa;">该班级暂无学生数据。</p>'}
+            </div>
+            <div style="text-align: right;">
+                <button class="btn-secondary" onclick="closeClassDetails()">关闭</button>
+            </div>
+        `;
+
+        overlay.style.display = 'block';
+        modal.style.display = 'block'; 
+    }
+
+    function closeClassDetails() {
+        document.getElementById('classDetailOverlay').style.display = 'none';
+        document.getElementById('classDetailModal').style.display = 'none';
+    }
+
+
+    function renderHeroes() {
+        const grid = document.getElementById('heroGrid');
+        const classFilter = document.getElementById('classFilter');
+        grid.innerHTML = '';
+        
+        let filteredStudents = students;
+        
+        // V3.3: 如果是班干部，只显示自己班级的学生
+        if (currentUserRole === 'cadre' && currentCadreClass) {
+            filteredStudents = students.filter(s => s.class === currentCadreClass);
+            classFilter.style.display = 'none'; 
+        } else {
+            // 教师/学生模式下的筛选逻辑
+            if (currentClassFilter !== 'all') {
+                filteredStudents = students.filter(s => s.class === currentClassFilter);
+            }
+            classFilter.style.display = 'inline-block';
+        }
+
+        filteredStudents.sort((a, b) => b.score - a.score);
+
+        filteredStudents.forEach((s, index) => {
+            let title = s.score >= 0 ? "赏金猎人" : "债务缠身者";
+            if (s.score > 50) title = "黄金赏金王";
+            else if (s.score < -10) title = "通缉犯";
+
+            const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${s.name}`;
+
+            const card = document.createElement('div');
+            card.className = 'hero-card';
+            card.innerHTML = `
+                <div class="avatar"><img src="${avatarUrl}" alt="avatar"></div>
+                <div class="hero-info">
+                    <div class="hero-name">${s.name} <span style="font-size:12px; color:#aaa">#${index+1} (${s.class}班)</span></div>
+                    <div class="hero-rank">${title}</div>
+                    <div class="hero-score" id="score-${s.id}">${s.score.toFixed(1)} 💰</div>
+                    <div class="action-btns" id="actions-${s.id}">
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+
+            if (roleMap[currentUserRole].canOperateScore) {
+                const canAdjust = (currentUserRole === 'teacher') || 
+                                  (currentUserRole === 'cadre' && s.class === currentCadreClass);
+                
+                if (canAdjust) {
+                    const actionBtn = document.createElement('button');
+                    actionBtn.className = 'btn-primary btn-mini';
+                    actionBtn.innerText = '调整赏金';
+                    actionBtn.onclick = () => openAdjustModal(s.id);
+                    document.getElementById(`actions-${s.id}`).appendChild(actionBtn);
+                }
+            }
+        });
+    }
+
+    // --- 4. 导入名单 (导入后调用 saveData) ---
+    function openImport() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+        document.getElementById('importOverlay').style.display = 'block';
+        document.getElementById('importModal').style.display = 'block'; 
+    }
+    
+    function closeImport() {
+        document.getElementById('importOverlay').style.display = 'none';
+        document.getElementById('importModal').style.display = 'none';
+    }
+
+    function processImport() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+
+        const input = document.getElementById('studentNamesInput').value;
+        const lines = input.split(/[\n]/).map(line => line.trim()).filter(line => line);
+        
+        if (lines.length > 0) {
+            const currentStudentsMap = new Map();
+            students.forEach(s => currentStudentsMap.set(s.name, s)); 
+
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            lines.forEach((line, idx) => {
+                let parts;
+                if (line.includes('\t')) {
+                    parts = line.split('\t'); 
+                } else {
+                    parts = line.split(','); 
+                }
+
+                if (parts.length >= 2) {
+                    const rawName = parts[0].trim();
+                    const name = rawName.includes('赏金猎人') ? rawName : `${rawName}`; 
+                    const score = parseFloat(parts[1].trim());
+                    const className = parts.length > 2 && parts[2].trim() ? parts[2].trim() : '1'; 
+                    
+                    if (name && !isNaN(score)) {
+                        const scoreToAdd = parseFloat(score.toFixed(1));
+                        const existingStudent = currentStudentsMap.get(name);
+
+                        if (existingStudent) {
+                            existingStudent.score = parseFloat((existingStudent.score + scoreToAdd).toFixed(1));
+                            updatedCount++;
+                            addLog(`**导入叠加**：${name} 叠加 ${scoreToAdd} 金币。`, 'Import', name, scoreToAdd);
+                        } else {
+                            const pinyinInitials = getPinyinInitials(name);
+                            const newStudent = {
+                                id: Date.now() + idx,
+                                name: name,
+                                score: scoreToAdd,
+                                class: className,
+                                pinyinInitials: pinyinInitials,
+                                searchKey: (name + pinyinInitials).toLowerCase()
+                            };
+                            students.push(newStudent);
+                            currentStudentsMap.set(name, newStudent); 
+                            addedCount++;
+                            addLog(`**导入新增**：${name} 加入名单，初始金币 ${scoreToAdd}。`, 'Import', name, scoreToAdd);
+                        }
+                    } else {
+                        addLog(`**警告**：导入行格式错误或金币值无效：${line}`);
+                    }
+                }
+            });
+            
+            recalculateSearchKeys();
+            renderRoleSelector(); 
+            renderClassFilterOptions(); 
+            renderClassLeaderboard();   
+            renderHeroes();
+            closeImport();
+            addLog(`**系统**：导入完成。新增 ${addedCount} 人，更新 ${updatedCount} 人。`);
+            saveData(); 
+        }
+    }
+
+
+    // --- 5. 兑换逻辑 (兑换后调用 saveData) ---
+
+    function populateStudentSelectors() {
+        const classSelector = document.getElementById('exchangeClassSelector');
+        const studentSelector = document.getElementById('exchangeStudentSelector');
+        let selectedClass = classSelector.value;
+
+        if (classSelector.options.length === 0 || classSelector.options.length === 1 && classSelector.options[0].value === "") {
+            const uniqueClasses = getUniqueClasses();
+            classSelector.innerHTML = uniqueClasses.map(c => `<option value="${c}">${c} 班</option>`).join('');
+            classSelector.value = uniqueClasses.length > 0 ? uniqueClasses[0] : '';
+            selectedClass = classSelector.value; 
+        }
+
+        studentSelector.innerHTML = '';
+        if (selectedClass) {
+            const studentsInClass = students.filter(s => s.class === selectedClass).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+            
+            if (studentsInClass.length === 0) {
+                studentSelector.innerHTML = '<option value="">该班级暂无学生</option>';
+                studentSelector.disabled = true;
+            } else {
+                studentSelector.innerHTML = studentsInClass.map(s => 
+                    `<option value="${s.id}">${s.name} (${s.score.toFixed(1)} 💰)</option>`
+                ).join('');
+                studentSelector.disabled = false;
+            }
+        }
+    }
+
+    function openExchangeSelector(itemId, isRandom = false) {
+        if (!isStoreOpen) {
+            return alert("兑换商店尚未开启！");
+        }
+        
+        currentExchangeItemId = itemId;
+        isRandomExchange = isRandom;
+        
+        const modal = document.getElementById('exchangeSelectorModal');
+        const title = document.getElementById('exchangeTitle');
+        const costInfo = document.getElementById('exchangeCostInfo');
+        
+        if (isRandom) {
+            title.innerText = "🎰 随机扭扭乐兑换";
+            costInfo.innerHTML = `<span style="color:var(--danger);">本次兑换消耗 ${RANDOM_COST.toFixed(1)} 💰。</span> 兑换后随机获得 **独立奖池** 商品！`;
+        } else {
+            const item = storeItems.find(i => i.id === itemId);
+            if (!item) return;
+            title.innerText = `🛒 兑换商品：${item.name}`;
+            costInfo.innerHTML = `<span style="color:var(--danger);">本次兑换消耗 ${item.cost.toFixed(1)} 💰。</span>`;
+        }
+        
+        populateStudentSelectors();
+
+        document.getElementById('exchangeSelectorOverlay').style.display = 'block';
+        modal.style.display = 'block'; 
+    }
+
+    function closeExchangeSelector() {
+        document.getElementById('exchangeSelectorOverlay').style.display = 'none';
+        document.getElementById('exchangeSelectorModal').style.display = 'none';
+        currentExchangeItemId = null;
+        isRandomExchange = false;
+    }
+    
+    function confirmExchange() {
+        const studentId = parseInt(document.getElementById('exchangeStudentSelector').value);
+        const student = students.find(s => s.id === studentId);
+
+        if (!student) return alert("请选择有效的兑换学生。");
+
+        let cost;
+        let itemToGrant;
+        let actionDescription;
+
+        if (isRandomExchange) {
+            cost = RANDOM_COST;
+            actionDescription = "随机扭扭乐";
+            if (gachaPrizes.length === 0) {
+                return alert("扭蛋奖池为空，请联系管理员添加奖品！");
+            }
+            const randomIndex = Math.floor(Math.random() * gachaPrizes.length);
+            itemToGrant = gachaPrizes[randomIndex]; 
+            
+        } else {
+            itemToGrant = storeItems.find(i => i.id === currentExchangeItemId);
+            if (!itemToGrant) return alert("商品信息错误，请重试。");
+            cost = itemToGrant.cost;
+            actionDescription = `兑换 [${itemToGrant.name}]`;
+        }
+        
+        if (student.score < cost) {
+            return alert(`金币不足！${student.name} 只有 ${student.score.toFixed(1)} 💰，需要 ${cost.toFixed(1)} 💰。`);
+        }
+        
+        if(confirm(`[${student.name}] 确定花费 ${cost.toFixed(1)} 💰 进行 ${actionDescription} 吗？`)) {
+            
+            student.score = parseFloat((student.score - cost).toFixed(1)); 
+            
+            playExchangeJingle();
+
+            const operator = roleMap[currentUserRole].tag + (currentCadreClass ? ` (${currentCadreClass}班)` : '');
+            const logDetail = isRandomExchange ? `随机获得 ${itemToGrant.name}` : itemToGrant.name;
+            addLog(`**兑换**：${student.name} 进行了 ${actionDescription}。`, 'Redeem', student.name, -cost, logDetail, operator);
+
+            renderClassLeaderboard(); 
+            renderHeroes();
+            closeExchangeSelector();
+            
+            if (isRandomExchange) {
+                openGachaResultModal(student.name, itemToGrant);
+            } else {
+                alert(`兑换成功！${itemToGrant.name} 已发放给 ${student.name}！`);
+            }
+            
+            saveData(); 
+        }
+    }
+    
+    function buyItem(itemId) {
+        openExchangeSelector(itemId, false);
+    }
+    
+    function openGachaResultModal(studentName, item) {
+        const title = document.getElementById('gachaResultTitle');
+        const animation = document.getElementById('gachaAnimation');
+        const revealArea = document.getElementById('gachaRevealArea');
+        const itemName = document.getElementById('gachaItemName');
+        const itemDesc = document.getElementById('gachaItemDesc');
+        const closeBtn = document.getElementById('gachaCloseBtn');
+
+        title.innerText = `${studentName} 正在抽取神秘扭蛋...`;
+        animation.style.display = 'inline-block';
+        revealArea.style.display = 'none';
+        closeBtn.style.display = 'none';
+
+        document.getElementById('gachaResultOverlay').style.display = 'block';
+        document.getElementById('gachaResultModal').style.display = 'block'; 
+
+        setTimeout(() => {
+            animation.style.display = 'none';
+            
+            title.innerText = `🎉 ${studentName} 扭蛋成功！🎉`;
+            
+            itemName.innerText = item.name; 
+            itemDesc.innerText = item.desc;
+            
+            revealArea.style.display = 'block';
+            closeBtn.style.display = 'block';
+            
+        }, 2000); 
+    }
+    
+    function closeGachaResultModal() {
+        document.getElementById('gachaResultOverlay').style.display = 'none';
+        document.getElementById('gachaResultModal').style.display = 'none';
+    }
+
+
+    // --- 6. 积分调整与删除 (操作后调用 saveData) ---
+    
+    function openSearchAdjustModal() {
+        if (!roleMap[currentUserRole].canOperateScore) return alert("您无权执行此操作。");
+        
+        if (currentUserRole === 'cadre' && !currentCadreClass) {
+            return alert("班干部未指定负责班级，请重新选择角色或联系教师。");
+        }
+        
+        document.getElementById('studentSearchInput').value = '';
+        filterStudentsForAdjust(''); 
+        
+        const instruction = document.getElementById('searchInstruction');
+        if (currentUserRole === 'cadre') {
+            instruction.innerText = `点击列表中的【${currentCadreClass}班】猎人进行赏金调整。`;
+        } else {
+            instruction.innerText = '点击列表中的猎人进行赏金调整。';
+        }
+        
+        document.getElementById('searchAdjustOverlay').style.display = 'block';
+        document.getElementById('searchAdjustModal').style.display = 'block'; 
+    }
+
+    function closeSearchAdjustModal() {
+        document.getElementById('searchAdjustOverlay').style.display = 'none';
+        document.getElementById('searchAdjustModal').style.display = 'none';
+    }
+
+    function filterStudentsForAdjust(query) {
+        const resultsContainer = document.getElementById('studentSearchResults');
+        const normalizedQuery = query.toLowerCase().trim();
+        
+        if (normalizedQuery.length === 0) {
+            resultsContainer.innerHTML = '<p style="color:#aaa; text-align:center; padding:10px;">开始输入姓名或首字母（例如：ZS）...</p>';
+            return;
+        }
+
+        let studentsToSearch = students;
+        if (currentUserRole === 'cadre' && currentCadreClass) {
+            studentsToSearch = students.filter(s => s.class === currentCadreClass);
+        }
+
+        const filtered = studentsToSearch.filter(s => {
+            return s.searchKey.includes(normalizedQuery);
+        });
+
+        if (filtered.length === 0) {
+            resultsContainer.innerHTML = '<p style="color:#e74c3c; text-align:center; padding:10px;">未找到匹配的猎人。</p>';
+        } else {
+            resultsContainer.innerHTML = filtered.map(s => `
+                <div class="search-result-item" onclick="selectStudentForAdjust(${s.id})">
+                    <span>${s.name} (${s.class}班)</span>
+                    <span style="color:var(--gold);">${s.score.toFixed(1)} 💰</span>
+                </div>
+            `).join('');
+        }
+    }
+    
+    function selectStudentForAdjust(id) {
+        closeSearchAdjustModal();
+        openAdjustModal(id);
+    }
+
+
+    function openAdjustModal(id) {
+        const student = students.find(s => s.id === id);
+        if (!student) return alert("学生不存在。");
+        
+        if (currentUserRole === 'cadre' && student.class !== currentCadreClass) {
+            return alert(`权限不足：您是 ${currentCadreClass} 班干部，无法操作 ${student.class} 班学生。`);
+        }
+        
+        adjustingStudentId = id;
+        document.getElementById('adjustTitle').innerText = `调整赏金：${student.name}`;
+        document.getElementById('adjustAmount').value = '';
+        document.getElementById('adjustReason').value = '';
+        
+        const deleteButton = document.getElementById('deleteStudentBtn');
+        if (deleteButton) {
+            deleteButton.style.display = roleMap[currentUserRole].canAdmin ? 'inline-block' : 'none';
+        }
+
+        document.getElementById('adjustOverlay').style.display = 'block';
+        document.getElementById('adjustModal').style.display = 'block'; 
+    }
+
+    function submitAdjust() {
+        const id = adjustingStudentId;
+        const student = students.find(s => s.id === id);
+
+        if (!student) return alert("学生不存在。");
+
+        if (currentUserRole === 'cadre' && student.class !== currentCadreClass) {
+            alert(`权限不足：您是 ${currentCadreClass} 班干部，无法操作 ${student.class} 班学生。`);
+            closeAdjustModal();
+            return;
+        }
+
+        const amount = parseFloat(document.getElementById('adjustAmount').value);
+        const reason = document.getElementById('adjustReason').value.trim();
+
+        if (isNaN(amount) || amount === 0) {
+            alert("请输入有效的金币值 (非0)");
+            return;
+        }
+        if (reason.length < 2) {
+            alert("请输入操作原因！");
+            return;
+        }
+        
+        student.score = parseFloat((student.score + amount).toFixed(1));
+
+        const operatorRoleTag = roleMap[currentUserRole].tag;
+        const operatorTag = operatorRoleTag + (currentCadreClass ? ` (${currentCadreClass}班)` : '');
+
+        const action = amount > 0 ? "获得" : "失去";
+        
+        addLog(`**${student.name}** ${action} ${Math.abs(amount).toFixed(1)} 金币。原因: ${reason}`, 'Adjust', student.name, amount, reason, operatorTag);
+
+        renderClassLeaderboard(); 
+        renderHeroes();
+        closeAdjustModal();
+        saveData(); 
+    }
+    
+    function clearAllScores() {
+        if (!roleMap[currentUserRole].canAdmin) {
+            return alert("只有教师 (管理) 才能清零所有积分。");
+        }
+
+        if (confirm("⚠️ 极度警告：您确定要将**所有**学生的金币清零吗？此操作不可逆！")) {
+            if (prompt("请再次输入 '清零' (中文) 以确认操作：") === '清零') {
+                const operatorTag = roleMap[currentUserRole].tag;
+                
+                students.forEach(s => {
+                    if (s.score !== 0) {
+                        const amount = -s.score;
+                        s.score = 0.0;
+                        addLog(`**清零**：${s.name} 积分被清零。`, 'ClearScore', s.name, amount, '教师操作：积分周期清零', operatorTag);
+                    }
+                });
+
+                renderClassLeaderboard(); 
+                renderHeroes();
+                saveData(); 
+                alert("✅ 所有学生的积分已成功清零！");
+            } else {
+                alert("确认失败，积分清零操作已取消。");
+            }
+        }
+    }
+
+    function deleteStudent(id) {
+        if (!roleMap[currentUserRole].canAdmin) {
+            alert("只有教师 (管理) 才能删除学生。");
+            return;
+        }
+
+        const studentIndex = students.findIndex(s => s.id === id);
+        if (studentIndex !== -1) {
+            const studentName = students[studentIndex].name;
+            if (confirm(`⚠️ 警告：您确定要永久删除学生 [${studentName}] 及其所有记录吗？`)) {
+                students.splice(studentIndex, 1);
+                
+                const operatorTag = roleMap[currentUserRole].tag;
+                addLog(`**删除**：教师删除了学生 [${studentName}]。`, 'Delete', studentName, 0, '永久移除', operatorTag);
+                
+                recalculateSearchKeys();
+                renderRoleSelector(); 
+                renderClassFilterOptions(); 
+                renderClassLeaderboard(); 
+                renderHeroes();
+                closeAdjustModal();
+                alert(`学生 ${studentName} 已被成功移除。`);
+                
+                saveData(); 
+            }
+        }
+    }
+
+    function closeAdjustModal() {
+        document.getElementById('adjustOverlay').style.display = 'none';
+        document.getElementById('adjustModal').style.display = 'none';
+        adjustingStudentId = null;
+    }
+
+
+    // --- 7. 商店管理辅助函数 (商店操作后调用 saveData) ---
+    
+    function renderStore() {
+        const container = document.getElementById('storeItemsContainer');
+        const listManager = document.getElementById('currentStoreList');
+        const gachaListManager = document.getElementById('currentGachaList'); 
+        
+        container.innerHTML = '';
+        listManager.innerHTML = '';
+        gachaListManager.innerHTML = '';
+        
+        storeItems.forEach(item => {
+            const itemCard = document.createElement('div');
+            itemCard.className = 'item-card';
+            itemCard.innerHTML = `
+                <div>
+                    <div style="font-weight:bold">${item.name}</div>
+                    <div style="font-size:12px; color:#aaa">${item.desc}</div>
+                </div>
+                <button class="btn-gold btn-mini" onclick="buyItem(${item.id})">${item.cost.toFixed(1)} 💰</button>
+            `;
+            container.appendChild(itemCard);
+        });
+
+        storeItems.forEach(item => {
+            const managerEntry = document.createElement('div');
+            managerEntry.className = 'item-card';
+            managerEntry.style.backgroundColor = 'rgba(255,255,255,0.1)';
+            managerEntry.innerHTML = `
+                <span>${item.name} (${item.cost.toFixed(1)} 💰)</span>
+                <button class="btn-danger btn-mini" onclick="deleteItemFromStore(${item.id})">删除</button>
+            `;
+            listManager.appendChild(managerEntry);
+        });
+        
+        gachaPrizes.forEach(item => {
+            const managerEntry = document.createElement('div');
+            managerEntry.className = 'item-card';
+            managerEntry.style.backgroundColor = 'rgba(27, 42, 63, 0.5)';
+            managerEntry.style.borderLeft = '4px solid var(--gold)';
+            managerEntry.innerHTML = `
+                <span>${item.name} <span style="font-size:12px; color:#aaa">(${item.desc})</span></span>
+                <button class="btn-danger btn-mini" onclick="deleteItemFromGachaPool(${item.id})">删除</button>
+            `;
+            gachaListManager.appendChild(managerEntry);
+        });
+    }
+
+    function openStoreManager() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("只有教师才能管理商店商品。");
+        renderStore();
+        document.getElementById('storeManagerOverlay').style.display = 'block';
+        document.getElementById('storeManagerModal').style.display = 'block'; 
+    }
+
+    function closeStoreManager() {
+        document.getElementById('storeManagerOverlay').style.display = 'none';
+        document.getElementById('storeManagerModal').style.display = 'none';
+    }
+
+    function addItemToStore() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+
+        const name = document.getElementById('newItemName').value.trim();
+        const cost = parseFloat(document.getElementById('newItemCost').value);
+        const desc = document.getElementById('newItemDesc').value.trim();
+
+        if (!name || isNaN(cost) || cost <= 0) {
+            return alert("请输入有效的商品名称和金币数。");
+        }
+        
+        const newItem = {
+            id: Date.now(),
+            name: name,
+            cost: parseFloat(cost.toFixed(1)),
+            desc: desc || '无描述'
+        };
+
+        storeItems.push(newItem);
+        document.getElementById('newItemName').value = '';
+        document.getElementById('newItemCost').value = '';
+        document.getElementById('newItemDesc').value = '';
+        
+        renderStore();
+        addLog(`**商店**：成功添加常规商品 [${name}] (${cost} 💰)`, 'Store');
+        saveData(); 
+    }
+
+    function deleteItemFromStore(itemId) {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+        
+        if(confirm("确定要删除此常规商品吗？")) {
+            const index = storeItems.findIndex(item => item.id === itemId);
+            if (index !== -1) {
+                const deletedName = storeItems[index].name;
+                storeItems.splice(index, 1);
+                renderStore();
+                addLog(`**商店**：已删除常规商品 [${deletedName}]`, 'Store');
+                saveData(); 
+            }
+        }
+    }
+
+    function addItemToGachaPool() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+
+        const name = document.getElementById('newGachaName').value.trim();
+        const desc = document.getElementById('newGachaDesc').value.trim();
+
+        if (!name) {
+            return alert("请输入有效的扭蛋奖品名称。");
+        }
+        
+        const newPrize = {
+            id: Date.now() + 10000, 
+            name: name,
+            desc: desc || '无描述'
+        };
+
+        gachaPrizes.push(newPrize);
+        document.getElementById('newGachaName').value = '';
+        document.getElementById('newGachaDesc').value = '';
+        
+        renderStore();
+        addLog(`**扭蛋**：成功添加奖品 [${name}]`, 'Gacha');
+        saveData(); 
+    }
+
+    function deleteItemFromGachaPool(itemId) {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+        
+        if(confirm("确定要删除此扭蛋奖品吗？")) {
+            const index = gachaPrizes.findIndex(item => item.id === itemId);
+            if (index !== -1) {
+                const deletedName = gachaPrizes[index].name;
+                gachaPrizes.splice(index, 1);
+                renderStore();
+                addLog(`**扭蛋**：已删除奖品 [${deletedName}]`, 'Gacha');
+                saveData(); 
+            }
+        }
+    }
+    
+    function toggleStore(shouldSave = true) {
+        if (shouldSave && !roleMap[currentUserRole].canAdmin) return alert("只有教师具有开启/关闭兑换商店的权限。");
+        
+        if (shouldSave) {
+            isStoreOpen = !isStoreOpen;
+        } 
+
+        const btn = document.getElementById('toggleStoreBtn');
+        const badge = document.getElementById('storeStatusBadge');
+        const container = document.getElementById('storeItemsContainer');
+        const randomBtn = document.getElementById('randomExchangeBtn');
+
+        if (isStoreOpen) {
+            btn.innerText = "🔒 结束兑换";
+            btn.className = "btn-danger";
+            badge.innerText = "营业中";
+            badge.className = "store-status status-open";
+            container.style.opacity = "1";
+            container.style.pointerEvents = "auto";
+            randomBtn.style.display = "block";
+            if (shouldSave) addLog(`**商店**：兑换商店已开启`, 'Store');
+        } else {
+            btn.innerText = "🔓 开启兑换";
+            btn.className = "btn-primary";
+            badge.innerText = "休息中";
+            badge.className = "store-status status-closed";
+            container.style.opacity = "0.5";
+            container.style.pointerEvents = "none";
+            randomBtn.style.display = "none";
+            if (shouldSave) addLog(`**商店**：兑换商店已关闭`, 'Store');
+        }
+
+        if (shouldSave) saveData(); 
+    }
+    
+    // --- 8. Pinyin 映射管理 (操作后调用 saveData) ---
+
+    function openPinyinManager() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("只有教师才能管理拼音映射。");
+        closeStoreManager();
+        renderPinyinMap();
+        document.getElementById('pinyinManagerOverlay').style.display = 'block';
+        document.getElementById('pinyinManagerModal').style.display = 'block'; 
+    }
+
+    function closePinyinManager() {
+        document.getElementById('pinyinManagerOverlay').style.display = 'none';
+        document.getElementById('pinyinManagerModal').style.display = 'none';
+        openStoreManager();
+    }
+
+    function renderPinyinMap() {
+        const container = document.getElementById('currentPinyinList');
+        container.innerHTML = '';
+
+        const sortedKeys = Object.keys(PinyinMap).filter(k => k !== '·').sort((a, b) => a.localeCompare(b, 'zh-CN'));
+        
+        if (sortedKeys.length === 0) {
+            container.innerHTML = '<p style="color:#aaa; text-align:center; padding:10px;">暂无自定义映射。</p>';
+            return;
+        }
+
+        sortedKeys.forEach(char => {
+            const initial = PinyinMap[char];
+            const entry = document.createElement('div');
+            entry.className = 'pinyin-entry';
+            entry.innerHTML = `
+                <div>
+                    <span class="pinyin-char">${char}</span> 映射到 
+                    <span class="pinyin-initial">${initial}</span>
+                </div>
+                <button class="btn-danger btn-mini" onclick="deletePinyinMapping('${char}')">删除</button>
+            `;
+            container.appendChild(entry);
+        });
+    }
+
+    function addPinyinMapping() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+
+        let char = document.getElementById('newPinyinChar').value.trim();
+        let initial = document.getElementById('newPinyinInitial').value.trim().toUpperCase();
+
+        if (char.length !== 1 || !char.match(/[\u4e00-\u9fa5]/g)) {
+            return alert("汉字输入无效，请输入一个汉字。");
+        }
+        if (initial.length !== 1 || !initial.match(/[A-Z]/g)) {
+            return alert("首字母输入无效，请输入一个大写字母 (A-Z)。");
+        }
+
+        if (PinyinMap[char]) {
+            if (!confirm(`汉字【${char}】已存在映射【${PinyinMap[char]}】，是否覆盖为【${initial}】？`)) {
+                return;
+            }
+        }
+
+        PinyinMap[char] = initial;
+
+        document.getElementById('newPinyinChar').value = '';
+        document.getElementById('newPinyinInitial').value = '';
+
+        recalculateSearchKeys();
+        renderPinyinMap();
+        addLog(`**拼音映射**：添加/更新汉字【${char}】到【${initial}】`, 'Pinyin');
+        saveData(); 
+    }
+
+    function deletePinyinMapping(char) {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+
+        if (confirm(`确定要删除汉字【${char}】的拼音映射吗？`)) {
+            if (PinyinMap[char]) {
+                delete PinyinMap[char];
+                
+                recalculateSearchKeys();
+                renderPinyinMap();
+                addLog(`**拼音映射**：删除汉字【${char}】的映射`, 'Pinyin');
+                saveData(); 
+            }
+        }
+    }
+    
+    // --- 9. 日志与导出辅助函数 ---
+    
+    function changeRole(value) {
+        if (value.startsWith('cadre-')) {
+            currentUserRole = 'cadre';
+            currentCadreClass = value.split('-')[1];
+        } else {
+            currentUserRole = value;
+            currentCadreClass = null;
+        }
+
+        const roleInfo = roleMap[currentUserRole];
+        
+        const roleTag = document.getElementById('roleTag');
+        const tagText = roleInfo.tag + (currentCadreClass ? ` (${currentCadreClass}班)` : '');
+        
+        roleTag.innerText = tagText;
+        roleTag.className = `role-tag ${roleInfo.class}`;
+
+        document.getElementById('importBtn').style.display = roleInfo.canAdmin ? 'block' : 'none';
+        document.getElementById('manageStoreBtn').style.display = roleInfo.canAdmin ? 'block' : 'none';
+        document.getElementById('exportLogBtn').style.display = roleInfo.canAdmin ? 'block' : 'none';
+        
+        // 仅保留导出CSV按钮
+        document.getElementById('exportCSVBtn').style.display = roleInfo.canAdmin ? 'block' : 'none';
+        
+        document.getElementById('clearScoreBtn').style.display = roleInfo.canAdmin ? 'block' : 'none'; 
+        
+        document.getElementById('toggleStoreBtn').style.display = roleInfo.canAdmin ? 'block' : 'none';
+        
+        document.getElementById('searchAdjustBtn').style.display = roleInfo.canOperateScore ? 'block' : 'none';
+        
+        if (currentUserRole === 'cadre' && currentCadreClass) {
+            currentClassFilter = currentCadreClass;
+        } else {
+            if (currentClassFilter !== 'all' && currentUserRole !== 'cadre') {
+                 const filterSelect = document.getElementById('classFilter');
+                 if (!getUniqueClasses().includes(currentClassFilter)) {
+                     currentClassFilter = 'all';
+                 }
+                 filterSelect.value = currentClassFilter;
+            }
+        }
+
+        renderHeroes();
+        addLog(`**系统**：角色已切换为 [${tagText}]`, 'System');
+    }
+
+    function playExchangeJingle() {
+        const audio = document.getElementById('exchangeJingle');
+        if (audio) {
+            if (audio.src === "") {
+                console.warn("未设置有效的兑换音效链接，无法播放。");
+                return;
+            }
+            audio.currentTime = 0;
+            audio.play().catch(error => {
+                console.error("无法播放音效，需要用户交互或检查链接有效性。", error);
+            });
+        }
+    }
+    
+    function addLog(text, type = 'System', name = '', amount = 0, detail = '', operator = '') {
+        const timestamp = new Date().toLocaleString();
+        
+        exchangeLog.push({
+            timestamp: timestamp,
+            type: type,
+            name: name,
+            amount: amount.toFixed(1),
+            detail: detail,
+            operator: operator
+        });
+
+        const logArea = document.getElementById('logArea');
+        if (logArea) {
+             const entry = document.createElement('div');
+             entry.innerHTML = `[${timestamp.split(' ')[1]}] ${text}`;
+             logArea.prepend(entry);
+        }
+
+        if (exchangeLog.length > 500) {
+            exchangeLog.shift(); 
+        }
+    }
+    
+    function renderLogHistory() {
+        const logArea = document.getElementById('logArea');
+        logArea.innerHTML = '';
+        for (let i = exchangeLog.length - 1; i >= 0; i--) {
+            const log = exchangeLog[i];
+            const entry = document.createElement('div');
+            let logText = log.detail;
+            if (log.type === 'Adjust' || log.type === 'ClearScore') {
+                const action = parseFloat(log.amount) > 0 ? "获得" : "失去";
+                const amountText = parseFloat(log.amount) === 0.0 ? "所有金币" : `${Math.abs(parseFloat(log.amount)).toFixed(1)} 金币`;
+                logText = `**${log.name}** ${action} ${amountText}。原因: ${log.detail}`;
+            } else if (log.type === 'Redeem') {
+                 logText = log.detail;
+            } else if (log.type === 'Delete') {
+                 logText = log.detail;
+            }
+            
+            entry.innerHTML = `[${log.timestamp.split(' ')[1]}] ${logText}`;
+            logArea.appendChild(entry);
+        }
+        if (exchangeLog.length === 0) {
+            logArea.innerHTML = '暂无记录...';
+        }
+    }
+
+
+    function exportLogData() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+        if (exchangeLog.length === 0) return alert("暂无操作日志可导出。");
+
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+        csvContent += "时间,操作类型,学生姓名,金币变动,详情/原因,操作人\n";
+        
+        exchangeLog.forEach(log => {
+            const detail = log.detail.replace(/,/g, '，'); 
+            const row = `${log.timestamp},${log.type},${log.name},${log.amount},"${detail}",${log.operator}\n`;
+            csvContent += row;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "赏金猎人_操作日志.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        addLog(`**系统**：操作日志已成功导出 (${exchangeLog.length} 条记录)。`, 'System');
+    }
+
+    function exportData() {
+        if (!roleMap[currentUserRole].canAdmin) return alert("您无权执行此操作。");
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+        csvContent += "排名,ID,姓名,金币值,班级\n";
+        
+        students.sort((a, b) => b.score - a.score); 
+
+        students.forEach((s, index) => {
+            csvContent += `${index+1},${s.id},${s.name},${s.score.toFixed(1)},${s.class}\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "赏金猎人榜_战报.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        addLog(`**系统**：战报数据已成功导出。`, 'System');
+    }
+
+    // 启动
+    init();
+
+</script>
+
+</body>
+</html>
